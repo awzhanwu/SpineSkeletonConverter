@@ -612,6 +612,12 @@ namespace spine42 {
     SkeletonData readJsonData(const Json&);
     Json writeJsonData(const SkeletonData&);
 }
+namespace spine43 {
+    SkeletonData readBinaryData(const Binary&);
+    Binary writeBinaryData(SkeletonData&);
+    SkeletonData readJsonData(const Json&);
+    Json writeJsonData(const SkeletonData&);
+}
 
 void convertCurve3xTo4x(SkeletonData& skeleton);
 void convertCurve4xTo3x(SkeletonData& skeleton);

@@ -7,19 +7,19 @@ A powerful command-line tool for converting Spine skeleton data between differen
 ## ✨ Features
 
 - **Automatic Version Detection**: Intelligently detects Spine version from `.skel` or `.json` files
-- **Multi-Version Support**: Compatible with Spine versions 3.5, 3.6, 3.7, 3.8, 4.0, 4.1, and 4.2
+- **Multi-Version Support**: Compatible with Spine versions 3.5, 3.6, 3.7, 3.8, 4.0, 4.1, 4.2, and 4.3
 - **Smart Format Detection**: Automatically detects file formats based on file extensions
 - **Cross-Platform**: Built with C++20 and CMake for maximum portability
 - **Comprehensive Testing**: Includes test suites for all supported versions
 
 ## 📋 Format Support Matrix
 
-|           | 3.5 | 3.6 | 3.7 | 3.8 | 4.0 | 4.1 | 4.2 |
-| --------- | --- | --- | --- | --- | --- | --- | --- |
-| JSON Reader | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅  |
-| JSON Writer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅  |
-| Binary Reader | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Binary Writer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+|           | 3.5 | 3.6 | 3.7 | 3.8 | 4.0 | 4.1 | 4.2 | 4.3 |
+| --------- | --- | --- | --- | --- | --- | --- | --- | --- |
+| JSON Reader | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅  | ✅ |
+| JSON Writer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅  | ✅ |
+| Binary Reader | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Binary Writer | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 **Legend**: ✅ Supported | 🚧 In Development | ❌ Not Supported
 
@@ -64,7 +64,7 @@ SpineSkeletonDataConverter.exe new.skel old.json -v 3.8.99
 #   --remove-curve  Strip animation curves instead of converting when crossing 3.x/4.x
 #   --help          Show this help message
 
-# Supported Spine versions: 3.5.x, 3.6.x, 3.7.x, 3.8.x, 4.0.x, 4.1.x, 4.2.x
+# Supported Spine versions: 3.5.x, 3.6.x, 3.7.x, 3.8.x, 4.0.x, 4.1.x, 4.2.x, 4.3.x
 # Note: Version must be specified in complete x.y.z format (e.g., 4.2.11, not 4.2)
 # Input version detection is automatic based on file content.
 # Output version defaults to input version unless specified with -v.
