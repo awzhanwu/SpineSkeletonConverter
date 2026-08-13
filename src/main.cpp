@@ -7,6 +7,40 @@
 
 #include "SkeletonData.h"
 
+// ============ Windows UTF-8 路径支持 ============
+// MinGW 在 Windows 上把 argv 窄串按系统代码页解释,中文路径会触发
+// std::filesystem::path 构造时 "Illegal byte sequence" 异常并 terminate。
+// 解决:用 GetCommandLineW 取真正的 UTF-16 参数,再统一经 UTF-8 → 宽串构造 path。
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <shellapi.h>
+#include <vector>
+
+// UTF-8 窄串 → 宽串,直接构造 std::filesystem::path(不做代码页转换,避免乱码/抛异常)
+static std::filesystem::path u8path(const std::string& s) {
+    if (s.empty()) return std::filesystem::path();
+    int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, nullptr, 0);
+    if (n <= 1) return std::filesystem::path(s);
+    std::wstring w(n - 1, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, s.c_str(), -1, w.data(), n);
+    return std::filesystem::path(w);
+}
+// wchar_t* → UTF-8 std::string
+static std::string wtoU8(const wchar_t* w) {
+    int n = WideCharToMultiByte(CP_UTF8, 0, w, -1, nullptr, 0, nullptr, nullptr);
+    if (n <= 0) return std::string();
+    std::string s(n - 1, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, w, -1, s.data(), n, nullptr, nullptr);
+    return s;
+}
+#else
+static std::filesystem::path u8path(const std::string& s) { return std::filesystem::path(s); }
+#endif
+
 enum class SpineVersion {
     Version35 = 0,
     Version36 = 1,
@@ -46,7 +80,7 @@ bool belowOrEqualVersion(SpineVersion version, SpineVersion target) {
 
 SpineVersion detectSpineVersion(const std::string& filePath) {
     try {
-        std::ifstream ifs(filePath, std::ios::binary);
+        std::ifstream ifs(u8path(filePath).c_str(), std::ios::binary);
         if (!ifs) return SpineVersion::Invalid;
         
         const size_t headerSize = 256;
@@ -138,14 +172,14 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
         Json jsonData;
         
         if (inputFormat == FileFormat::Skel) {
-            std::ifstream ifs(inputFile, std::ios::binary);
+            std::ifstream ifs(u8path(inputFile).c_str(), std::ios::binary);
             if (!ifs) {
                 std::cerr << "Error: Cannot open input file: " << inputFile << "\n";
                 return false;
             }
             binaryData.assign((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
         } else if (inputFormat == FileFormat::Json) {
-            std::ifstream ifs(inputFile);
+            std::ifstream ifs(u8path(inputFile).c_str());
             if (!ifs) {
                 std::cerr << "Error: Cannot open input file: " << inputFile << "\n";
                 return false;
@@ -268,7 +302,7 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
             case SpineVersion::Version35: {
                 if (outputFormat == FileFormat::Skel) {
                     auto outputData = spine35::writeBinaryData(skelData);
-                    std::ofstream ofs(outputFile, std::ios::binary);
+                    std::ofstream ofs(u8path(outputFile).c_str(), std::ios::binary);
                     if (!ofs) {
                         std::cerr << "Error: Cannot create output file: " << outputFile << "\n";
                         return false;
@@ -276,7 +310,7 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
                     ofs.write(reinterpret_cast<const char*>(outputData.data()), outputData.size());
                 } else {
                     auto outputJson = spine35::writeJsonData(skelData);
-                    std::ofstream ofs(outputFile);
+                    std::ofstream ofs(u8path(outputFile).c_str());
                     if (!ofs) {
                         std::cerr << "Error: Cannot create output file: " << outputFile << "\n";
                         return false;
@@ -288,7 +322,7 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
             case SpineVersion::Version36: {
                 if (outputFormat == FileFormat::Skel) {
                     auto outputData = spine36::writeBinaryData(skelData);
-                    std::ofstream ofs(outputFile, std::ios::binary);
+                    std::ofstream ofs(u8path(outputFile).c_str(), std::ios::binary);
                     if (!ofs) {
                         std::cerr << "Error: Cannot create output file: " << outputFile << "\n";
                         return false;
@@ -296,7 +330,7 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
                     ofs.write(reinterpret_cast<const char*>(outputData.data()), outputData.size());
                 } else {
                     auto outputJson = spine36::writeJsonData(skelData);
-                    std::ofstream ofs(outputFile);
+                    std::ofstream ofs(u8path(outputFile).c_str());
                     if (!ofs) {
                         std::cerr << "Error: Cannot create output file: " << outputFile << "\n";
                         return false;
@@ -308,7 +342,7 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
             case SpineVersion::Version37: {
                 if (outputFormat == FileFormat::Skel) {
                     auto outputData = spine37::writeBinaryData(skelData);
-                    std::ofstream ofs(outputFile, std::ios::binary);
+                    std::ofstream ofs(u8path(outputFile).c_str(), std::ios::binary);
                     if (!ofs) {
                         std::cerr << "Error: Cannot create output file: " << outputFile << "\n";
                         return false;
@@ -316,7 +350,7 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
                     ofs.write(reinterpret_cast<const char*>(outputData.data()), outputData.size());
                 } else {
                     auto outputJson = spine37::writeJsonData(skelData);
-                    std::ofstream ofs(outputFile);
+                    std::ofstream ofs(u8path(outputFile).c_str());
                     if (!ofs) {
                         std::cerr << "Error: Cannot create output file: " << outputFile << "\n";
                         return false;
@@ -328,7 +362,7 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
             case SpineVersion::Version38: {
                 if (outputFormat == FileFormat::Skel) {
                     auto outputData = spine38::writeBinaryData(skelData);
-                    std::ofstream ofs(outputFile, std::ios::binary);
+                    std::ofstream ofs(u8path(outputFile).c_str(), std::ios::binary);
                     if (!ofs) {
                         std::cerr << "Error: Cannot create output file: " << outputFile << "\n";
                         return false;
@@ -336,7 +370,7 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
                     ofs.write(reinterpret_cast<const char*>(outputData.data()), outputData.size());
                 } else {
                     auto outputJson = spine38::writeJsonData(skelData);
-                    std::ofstream ofs(outputFile);
+                    std::ofstream ofs(u8path(outputFile).c_str());
                     if (!ofs) {
                         std::cerr << "Error: Cannot create output file: " << outputFile << "\n";
                         return false;
@@ -348,7 +382,7 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
             case SpineVersion::Version40: {
                 if (outputFormat == FileFormat::Skel) {
                     auto outputData = spine40::writeBinaryData(skelData);
-                    std::ofstream ofs(outputFile, std::ios::binary);
+                    std::ofstream ofs(u8path(outputFile).c_str(), std::ios::binary);
                     if (!ofs) {
                         std::cerr << "Error: Cannot create output file: " << outputFile << "\n";
                         return false;
@@ -356,7 +390,7 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
                     ofs.write(reinterpret_cast<const char*>(outputData.data()), outputData.size());
                 } else {
                     auto outputJson = spine40::writeJsonData(skelData);
-                    std::ofstream ofs(outputFile);
+                    std::ofstream ofs(u8path(outputFile).c_str());
                     if (!ofs) {
                         std::cerr << "Error: Cannot create output file: " << outputFile << "\n";
                         return false;
@@ -368,7 +402,7 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
             case SpineVersion::Version41: {
                 if (outputFormat == FileFormat::Skel) {
                     auto outputData = spine41::writeBinaryData(skelData);
-                    std::ofstream ofs(outputFile, std::ios::binary);
+                    std::ofstream ofs(u8path(outputFile).c_str(), std::ios::binary);
                     if (!ofs) {
                         std::cerr << "Error: Cannot create output file: " << outputFile << "\n";
                         return false;
@@ -376,7 +410,7 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
                     ofs.write(reinterpret_cast<const char*>(outputData.data()), outputData.size());
                 } else {
                     auto outputJson = spine41::writeJsonData(skelData);
-                    std::ofstream ofs(outputFile);
+                    std::ofstream ofs(u8path(outputFile).c_str());
                     if (!ofs) {
                         std::cerr << "Error: Cannot create output file: " << outputFile << "\n";
                         return false;
@@ -388,7 +422,7 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
             case SpineVersion::Version42: {
                 if (outputFormat == FileFormat::Skel) {
                     auto outputData = spine42::writeBinaryData(skelData);
-                    std::ofstream ofs(outputFile, std::ios::binary);
+                    std::ofstream ofs(u8path(outputFile).c_str(), std::ios::binary);
                     if (!ofs) {
                         std::cerr << "Error: Cannot create output file: " << outputFile << "\n";
                         return false;
@@ -396,7 +430,7 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
                     ofs.write(reinterpret_cast<const char*>(outputData.data()), outputData.size());
                 } else {
                     auto outputJson = spine42::writeJsonData(skelData);
-                    std::ofstream ofs(outputFile);
+                    std::ofstream ofs(u8path(outputFile).c_str());
                     if (!ofs) {
                         std::cerr << "Error: Cannot create output file: " << outputFile << "\n";
                         return false;
@@ -408,7 +442,7 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
             case SpineVersion::Version43: {
                 if (outputFormat == FileFormat::Skel) {
                     auto outputData = spine43::writeBinaryData(skelData);
-                    std::ofstream ofs(outputFile, std::ios::binary);
+                    std::ofstream ofs(u8path(outputFile).c_str(), std::ios::binary);
                     if (!ofs) {
                         std::cerr << "Error: Cannot create output file: " << outputFile << "\n";
                         return false;
@@ -416,7 +450,7 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
                     ofs.write(reinterpret_cast<const char*>(outputData.data()), outputData.size());
                 } else {
                     auto outputJson = spine43::writeJsonData(skelData);
-                    std::ofstream ofs(outputFile);
+                    std::ofstream ofs(u8path(outputFile).c_str());
                     if (!ofs) {
                         std::cerr << "Error: Cannot create output file: " << outputFile << "\n";
                         return false;
@@ -469,8 +503,8 @@ ConversionOptions parseArguments(int argc, char* argv[]) {
     options.outputFile = argv[2];
     
     // 自动检测文件格式
-    std::string inputExt = std::filesystem::path(options.inputFile).extension().string();
-    std::string outputExt = std::filesystem::path(options.outputFile).extension().string();
+    std::string inputExt = u8path(options.inputFile).extension().string();
+    std::string outputExt = u8path(options.outputFile).extension().string();
     
     if (inputExt == ".json") {
         options.inputFormat = FileFormat::Json;
@@ -525,6 +559,24 @@ ConversionOptions parseArguments(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
+#ifdef _WIN32
+    // 用宽字符命令行重新获取参数,绕过 CRT 窄 argv 的系统代码页限制,保证中文等 Unicode 路径正确
+    // 注意:u8args/argv8 必须存活到整个 main,不能放在内部块里(否则 argv 指向已释放内存)
+    std::vector<std::string> u8args;
+    std::vector<char*> argv8;
+    {
+        int wargc = 0;
+        wchar_t** wargv = CommandLineToArgvW(GetCommandLineW(), &wargc);
+        if (wargv && wargc > 0) {
+            u8args.reserve(wargc);
+            for (int i = 0; i < wargc; i++) u8args.emplace_back(wtoU8(wargv[i]));
+            for (auto& s : u8args) argv8.push_back(const_cast<char*>(s.c_str()));
+            LocalFree(wargv);
+            argc = wargc;
+            argv = argv8.data();
+        }
+    }
+#endif
     ConversionOptions options = parseArguments(argc, argv);
     
     if (options.help) {
@@ -533,7 +585,7 @@ int main(int argc, char* argv[]) {
     }
     
     // Validate input file exists
-    if (!std::filesystem::exists(options.inputFile)) {
+    if (!std::filesystem::exists(u8path(options.inputFile))) {
         std::cerr << "Error: Input file does not exist: " << options.inputFile << "\n";
         return 1;
     }
