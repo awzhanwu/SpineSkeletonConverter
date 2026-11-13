@@ -1,0 +1,46 @@
+
+name: Build Windows EXE
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Windows x64
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Configure CMake
+        run: >
+          cmake -S . -B build
+          -G "Visual Studio 17 2022"
+          -A x64
+
+      - name: Build Release
+        run: >
+          cmake --build build
+          --config Release
+          --target SpineSkeletonDataConverter
+
+      - name: Verify executable
+        shell: pwsh
+        run: |
+          $exe = ".\build\Release\SpineSkeletonDataConverter.exe"
+          if (!(Test-Path $exe)) {
+            throw "EXE was not generated"
+          }
+          & $exe --help
+
+      - name: Upload EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: SpineSkeletonDataConverter-Windows-x64
+          path: build/Release/SpineSkeletonDataConverter.exe
+          if-no-files-found: error
+          retention-days: 30
