@@ -77,3 +77,19 @@ add_executable(SpineAtlasDowngrade
 )
 
 target_include_directories(SpineAtlasDowngrade PRIVATE "include")
+
+
+# Spine 4.3 reader / writer support
+target_sources(SpineSkeletonDataConverter PRIVATE
+    "src/SkeletonData43BinaryReader.cpp"
+    "src/SkeletonData43BinaryWriter.cpp"
+    "src/SkeletonData43JsonReader.cpp"
+    "src/SkeletonData43JsonWriter.cpp"
+)
+
+# Required for CommandLineToArgvW on Windows
+if(WIN32)
+    target_link_libraries(
+        SpineSkeletonDataConverter PRIVATE shell32
+    )
+endif()
