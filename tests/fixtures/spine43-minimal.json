@@ -1,0 +1,5 @@
+{
+  "skeleton": { "spine": "4.3.2" },
+  "bones": [{ "name": "root" }],
+  "animations": { "idle": {} }
+}

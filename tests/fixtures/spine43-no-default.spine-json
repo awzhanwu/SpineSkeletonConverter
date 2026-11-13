@@ -1,0 +1,26 @@
+{
+  "skeleton": { "spine": "4.3.2" },
+  "bones": [{ "name": "root" }],
+  "slots": [{ "name": "shape", "bone": "root", "attachment": "mesh" }],
+  "skins": [
+    {
+      "name": "alternate",
+      "attachments": {
+        "shape": {
+          "mesh": {
+            "type": "mesh", "hull": 3,
+            "uvs": [0, 0, 1, 0, 0, 1], "triangles": [0, 1, 2],
+            "vertices": [0, 0, 1, 0, 0, 1]
+          }
+        }
+      }
+    }
+  ],
+  "animations": {
+    "test": {
+      "attachments": {
+        "alternate": { "shape": { "mesh": { "deform": [{}, { "time": 1, "vertices": [1, 2] }] } } }
+      }
+    }
+  }
+}

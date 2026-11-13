@@ -1,0 +1,164 @@
+{
+  "skeleton": {
+    "hash": "ASNFZ4mrze8",
+    "spine": "4.3.2",
+    "x": -13, "y": 2, "width": 100, "height": 45,
+    "referenceScale": 87, "fps": 24, "images": "./纹理/", "audio": null
+  },
+  "bones": [
+    { "name": "root" },
+    { "name": "source", "parent": "root", "x": 10, "y": 3, "rotation": 20 },
+    {
+      "name": "animated", "parent": "source", "length": 17.5, "x": -4, "y": 2,
+      "rotation": 10, "scaleX": 0.75, "scaleY": 1.25, "shearX": 2, "shearY": 4,
+      "inherit": "noScale", "skin": true, "color": "12ab34ff", "visible": false,
+      "icon": "circle", "iconSize": 2.5, "iconRotation": 55
+    }
+  ],
+  "slots": [
+    { "name": "shape", "bone": "animated", "attachment": "mesh", "dark": "ffffff", "color": "ff8033bb", "visible": false },
+    { "name": "path-slot", "bone": "root", "attachment": "rail" },
+    { "name": "end", "bone": "source", "attachment": "sprite", "blend": "additive" },
+    { "name": "link", "bone": "source", "attachment": "linked" }
+  ],
+  "constraints": [
+    {
+      "type": "path", "name": "follow", "bones": ["animated"], "slot": "path-slot",
+      "positionMode": "fixed", "spacingMode": "percent", "rotateMode": "chainScale",
+      "rotation": 12, "position": 2.5, "spacing": 0.5, "mixRotate": 0.5, "mixX": 0.75, "mixY": 0.25
+    },
+    {
+      "type": "ik", "name": "reach", "bones": ["animated"], "target": "source",
+      "scaleY": "volume", "skin": true, "bendPositive": false, "compress": true,
+      "stretch": true, "softness": 1.25, "mix": 0.5
+    },
+    {
+      "type": "transform", "name": "map", "bones": ["animated"], "source": "source",
+      "localSource": true, "localTarget": false, "additive": true, "clamp": true, "skin": true,
+      "properties": { "x": { "offset": -3, "to": { "y": { "offset": 2, "max": 6, "scale": 0.5 } } } },
+      "y": 1.25, "mixY": 0.5
+    },
+    {
+      "type": "physics", "name": "spring", "bone": "animated", "x": 0.25,
+      "scaleX": 0.5, "scaleY": "volume", "limit": 150, "fps": 120, "mass": 2.5,
+      "wind": 0.5, "gravity": -0.25, "mixGlobal": true
+    },
+    {
+      "type": "slider", "name": "control", "animation": "slider-base",
+      "bone": "source", "property": "x", "from": 2, "to": 0.25, "scale": 0.5,
+      "max": 3, "local": true, "loop": true, "additive": true, "mix": 0.5
+    },
+    { "type": "slider", "name": "timer", "animation": "slider-base", "time": 0.5 }
+  ],
+  "skins": [
+    {
+      "name": "alternate", "color": "abcdef77", "bones": ["animated"],
+      "ik": ["reach"], "transform": ["map"], "path": ["follow"], "physics": ["spring"], "slider": ["control"],
+      "attachments": { "link": { "linked": {
+        "type": "linkedmesh", "name": "alternate-mesh", "path": "alternate/mesh", "slot": "shape", "source": "mesh"
+      } } }
+    },
+    {
+      "name": "default",
+      "attachments": {
+        "shape": {
+          "mesh": {
+            "type": "mesh", "hull": 4, "uvs": [0, 0, 1, 0, 1, 1, 0, 1],
+            "triangles": [0, 1, 2, 2, 3, 0], "edges": [0, 2, 2, 4, 4, 6, 6, 0], "width": 10, "height": 10,
+            "vertices": [1, 0, 0, 0, 1, 1, 0, 10, 0, 1, 2, 0, 10, 10, 0.25, 2, 1, 2, 0.75, 1, 2, 0, 10, 1],
+            "sequence": { "count": 3, "start": 4, "digits": 2, "setup": 1 }
+          },
+          "box": { "type": "boundingbox", "vertexCount": 3, "vertices": [0, 0, 2, 0, 0, 2] },
+          "clip": {
+            "type": "clipping", "end": "end", "convex": true, "inverse": true, "color": "abcdef87",
+            "vertexCount": 3, "vertices": [0, 0, 4, 0, 0, 4]
+          },
+          "clip-to-end": { "type": "clipping", "vertexCount": 3, "vertices": [0, 0, 4, 0, 0, 4] }
+        },
+        "path-slot": {
+          "rail": {
+            "type": "path", "vertexCount": 6, "vertices": [-1, 0, 0, 0, 1, 0, 2, 0, 3, 0, 4, 0],
+            "lengths": [3, 3], "constantSpeed": false
+          }
+        },
+        "end": {
+          "sprite": { "name": "sprite-name", "path": "sprites/image", "rotation": 17, "width": 5, "height": 6 },
+          "point": { "type": "point", "x": 3, "y": -4, "rotation": 50 }
+        }
+      }
+    }
+  ],
+  "events": {
+    "sound": { "int": -127, "float": 0.5, "string": "ready", "audio": "sound.wav", "volume": 0.75, "balance": -0.25 },
+    "silent": { "int": 12, "audio": "" }
+  },
+  "animations": {
+    "motion": {
+      "color": "88aaff99",
+      "slots": {
+        "shape": {
+          "attachment": [{ "name": "mesh" }, { "time": 0.75, "name": null }],
+          "rgba2": [
+            { "light": "ff8033bb", "dark": "aabbcc", "curve": "stepped" },
+            { "time": 1, "light": "33ff80aa", "dark": "ccaabb" }
+          ]
+        },
+        "end": { "alpha": [{ "value": 0.5 }, { "time": 0.5, "value": 1 }] }
+      },
+      "bones": {
+        "animated": {
+          "inherit": [{ "inherit": "noScale" }, { "time": 0.5, "inherit": "onlyTranslation" }],
+          "translate": [
+            { "x": 1, "y": 2, "curve": [0.125, 1.5, 0.375, 2.25, 0.125, 3, 0.375, 4.5] },
+            { "time": 0.5, "x": 3, "y": 5 },
+            { "time": 1, "x": -1, "y": 2 }
+          ]
+        }
+      },
+      "ik": {
+        "reach": [
+          { "mix": 0.5, "softness": 1, "curve": [0.25, 0.75, 0.75, 0.25, 0.25, 1, 0.75, 0.5] },
+          { "time": 1, "mix": 0.25, "bendPositive": false, "compress": true, "stretch": true }
+        ]
+      },
+      "transform": { "map": [{ "mixScaleX": 0.5, "mixY": 0.125 }, { "time": 0.5, "mixScaleY": 0, "mixY": 0.75 }] },
+      "path": {
+        "follow": {
+          "position": [{ "value": 0.25 }, { "time": 1, "value": 2.25 }],
+          "spacing": [{ "value": 0.5 }, { "time": 1, "value": 0.75 }],
+          "mix": [{ "mixRotate": 0.5, "mixX": 0.25 }, { "time": 1, "mixRotate": 0, "mixX": 1 }]
+        }
+      },
+      "physics": {
+        "": { "mix": [{}, { "time": 1, "value": 0.75 }] },
+        "spring": { "reset": [{ "time": 0.5 }], "wind": [{ "value": -1 }, { "time": 1, "value": 0.25 }] }
+      },
+      "slider": {
+        "timer": { "time": [{ "value": 0.25 }, { "time": 0.5 }] },
+        "control": { "mix": [{ "value": 0.75 }] }
+      },
+      "attachments": {
+        "default": {
+          "shape": {
+            "mesh": {
+              "deform": [{ "curve": [0.125, 0.25, 0.375, 0.75] }, { "time": 0.5, "offset": 2, "vertices": [0.125, -2] }],
+              "sequence": [{ "mode": "loopReverse", "delay": 0.125 }, { "time": 0.75, "index": 2 }]
+            }
+          }
+        }
+      },
+      "drawOrder": [{ "offsets": [{ "slot": "end", "offset": -1 }] }, { "time": 1 }],
+      "drawOrderFolder": [
+        { "slots": ["shape", "end", "link"], "keys": [{ "offsets": [{ "slot": "link", "offset": -2 }] }, { "time": 1 }] }
+      ],
+      "events": [
+        { "time": 0.125, "name": "sound" },
+        { "time": 0.25, "name": "sound", "int": -5, "float": 1.25, "string": "", "volume": 1, "balance": 0 },
+        { "time": 0.75, "name": "silent", "int": 0 }
+      ]
+    },
+    "slider-base": {
+      "bones": { "animated": { "rotate": [{ "value": 0 }, { "time": 1, "value": -30 }] } }
+    }
+  }
+}

@@ -93,3 +93,9 @@ if(WIN32)
         SpineSkeletonDataConverter PRIVATE shell32
     )
 endif()
+
+option(SPINE43_RUNTIME_TESTS "Test with the official Spine 4.3 C++ runtime" OFF)
+if(SPINE43_RUNTIME_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

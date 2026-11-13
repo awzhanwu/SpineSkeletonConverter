@@ -1,5 +1,8 @@
 #include "SkeletonData.h"
 
+#include <iomanip>
+#include <sstream>
+
 // json reader
 
 Color stringToColor(const std::string& str, bool hasAlpha) {
@@ -34,6 +37,7 @@ std::string colorToString(const Color& color, bool hasAlpha) {
 // binary reader
 
 unsigned char readByte(DataInput* input) {
+    if (input->cursor == input->end) throw std::runtime_error("Unexpected end of skeleton binary");
     return *input->cursor++;
 }
 
@@ -97,6 +101,8 @@ float readFloat(DataInput* input) {
 OptStr readString(DataInput* input) {
     int length = readVarint(input, true); 
     if (length == 0) return std::nullopt;
+    if (length < 0 || length - 1 > input->end - input->cursor)
+        throw std::runtime_error("Invalid string length in skeleton binary");
     std::string string; 
     string.resize(length - 1); 
     memcpy(string.data(), input->cursor, length - 1); 
@@ -107,7 +113,7 @@ OptStr readString(DataInput* input) {
 OptStr readStringRef(DataInput* input, SkeletonData* skeletonData) {
     int index = readVarint(input, true); 
     if (index == 0) return std::nullopt; 
-    else return skeletonData->strings[index - 1]; 
+    return skeletonData->strings.at(index - 1);
 }
 
 // binary writer

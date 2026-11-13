@@ -1,7 +1,8 @@
 
-name: Build Windows EXE
+name: Test Spine 4.3 and build Windows EXE
 
 on:
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -21,12 +22,17 @@ jobs:
           cmake -S . -B build
           -G "Visual Studio 17 2022"
           -A x64
+          -DSPINE43_RUNTIME_TESTS=ON
 
       - name: Build Release
         run: >
           cmake --build build
           --config Release
-          --target SpineSkeletonDataConverter
+          --target SpineSkeletonDataConverter Spine43RuntimeCheck
+          --parallel 2
+
+      - name: Test with official Spine 4.3 Runtime
+        run: ctest --test-dir build -C Release --output-on-failure
 
       - name: Verify executable
         shell: pwsh

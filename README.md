@@ -57,6 +57,7 @@ SpineSkeletonDataConverter.exe new.skel old.json -v 3.8.99
 
 # Supported file formats:
 #   .json       Spine JSON format
+#   .spine-json Spine JSON for spine-godot
 #   .skel       Spine binary (SKEL) format
 
 # Options:
@@ -111,6 +112,22 @@ python tools/SpineConverter.py <input_dir> <output_dir> \
 - `.atlas` files are always downgraded through `SpineAtlasDowngrade.exe`.
 
 ## 🧪 Testing
+
+### Spine 4.3 Runtime compatibility
+
+Build the converter and the independent runtime verifier with CMake 3.20 or later.
+
+```sh
+cmake -S . -B build -DSPINE43_RUNTIME_TESTS=ON
+cmake --build build --config Release --target SpineSkeletonDataConverter Spine43RuntimeCheck
+ctest --test-dir build -C Release --output-on-failure
+```
+
+The tests compare the data loaded by the official `SkeletonJson` and `SkeletonBinary` readers. They exercise editor exports, a 3.8 binary upgrade, and fixtures for 4.3 features such as sliders, linked meshes across slots, and draw order folders. CMake fetches the pinned runtime and its examples for the tests. A local checkout of that revision can be supplied through `FETCHCONTENT_SOURCE_DIR_SPINE43_RUNTIME`. [Official Spine 4.3 C++ reader](https://github.com/EsotericSoftware/spine-runtimes/blob/405f43295b5832e86d9df3a80beb6bc9df772312/spine-cpp/src/spine/SkeletonBinary.cpp)
+
+For files produced by the previous converter, pass the old `.skel` as input and write a new `.skel` with `-v 4.3.2`. The converter can also read the grouped constraint fields used by its earlier 4.3 JSON output. New 4.3 JSON uses the runtime's `constraints` array.
+
+### General conversion tests
 
 The project includes comprehensive testing tools to validate conversion accuracy and data integrity across all supported Spine versions.
 
