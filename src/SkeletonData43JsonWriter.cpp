@@ -259,7 +259,9 @@ Json writeJsonData(const SkeletonData& skeletonData) {
                             attachmentJson["height"] = mesh.height;
                             if (mesh.color) attachmentJson["color"] = colorToString(mesh.color.value(), true);
                             if (mesh.sequence) attachmentJson["sequence"] = writeSequence(mesh.sequence.value());
-                            if (mesh.hullLength != 0) attachmentJson["hull"] = mesh.hullLength;
+                            // Older exports can declare a hull inconsistent with their triangle indices.
+                            const int hull = binaryMeshHull(mesh).value_or(mesh.hullLength);
+                            if (hull != 0) attachmentJson["hull"] = hull;
                             if (!mesh.triangles.empty()) attachmentJson["triangles"] = mesh.triangles;
                             if (!mesh.edges.empty()) attachmentJson["edges"] = mesh.edges;
                             if (!mesh.uvs.empty()) attachmentJson["uvs"] = mesh.uvs;

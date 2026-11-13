@@ -220,13 +220,10 @@ void writeAttachment(Binary& binary, const std::string& skin, const std::string&
             const auto& mesh = std::get<MeshAttachment>(attachment.data);
             textured(mesh);
             if (mesh.vertices.size() != mesh.uvs.size()) flags |= 128;
-            if (mesh.uvs.size() % 2 || mesh.triangles.size() % 3 ||
-                mesh.uvs.size() < mesh.triangles.size() / 3 + 2)
-                throw std::runtime_error("Invalid mesh topology: " + attachment.name);
             // The runtime infers the triangle index count from this field.
-            const size_t hull = mesh.uvs.size() - mesh.triangles.size() / 3 - 2;
-            if (hull > mesh.uvs.size() / 2) throw std::runtime_error("Invalid mesh hull: " + attachment.name);
-            writeVarint(payload, hull, true);
+            const auto hull = binaryMeshHull(mesh);
+            if (!hull) throw std::runtime_error("Invalid mesh topology: " + attachment.name);
+            writeVarint(payload, *hull, true);
             writeVertices(payload, mesh.vertices, mesh.uvs.size() / 2, context);
             for (float uv : mesh.uvs) writeFloat(payload, uv);
             for (auto index : mesh.triangles) {

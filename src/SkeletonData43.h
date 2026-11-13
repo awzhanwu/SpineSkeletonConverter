@@ -63,4 +63,13 @@ inline TransformMapping transformMapping(const TransformConstraintData& transfor
     return mapping;
 }
 
+inline std::optional<int> binaryMeshHull(const MeshAttachment& mesh) {
+    const auto coordinates = mesh.uvs.size();
+    const auto triangles = mesh.triangles.size() / 3;
+    if (coordinates % 2 || mesh.triangles.size() % 3 || coordinates < triangles + 2) return std::nullopt;
+    const auto hull = coordinates - triangles - 2;
+    if (hull > coordinates / 2) return std::nullopt;
+    return static_cast<int>(hull);
+}
+
 } // namespace spine43

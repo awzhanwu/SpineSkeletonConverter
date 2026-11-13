@@ -40,4 +40,5 @@ spine43_roundtrip(features "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/spine43-feature
 spine43_roundtrip(minimal "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/spine43-minimal.json")
 spine43_roundtrip(no-default-skin "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/spine43-no-default.spine-json")
 spine43_roundtrip(spine38 "${PROJECT_SOURCE_DIR}/data/38/spineboy/export/spineboy-pro.skel" -DUPGRADE=ON)
+spine43_roundtrip(spine38-raptor "${PROJECT_SOURCE_DIR}/data/38/raptor/export/raptor-pro.skel" -DUPGRADE=ON)
 spine43_roundtrip(legacy-writer "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/spine43-legacy.skel" -DUPGRADE=ON)

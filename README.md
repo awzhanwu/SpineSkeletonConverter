@@ -127,6 +127,8 @@ The tests compare the data loaded by the official `SkeletonJson` and `SkeletonBi
 
 For files produced by the previous converter, pass the old `.skel` as input and write a new `.skel` with `-v 4.3.2`. The converter can also read the grouped constraint fields used by its earlier 4.3 JSON output. New 4.3 JSON uses the runtime's `constraints` array.
 
+When a legacy mesh's hull count disagrees with its triangulation, 4.3 output preserves the triangle indices and derives the hull count from them. The binary reader uses that count to determine how many triangle indices to read.
+
 ### General conversion tests
 
 The project includes comprehensive testing tools to validate conversion accuracy and data integrity across all supported Spine versions.
