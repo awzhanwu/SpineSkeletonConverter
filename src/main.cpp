@@ -297,6 +297,9 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
             convertOrder42ToBelow(skelData);
         }
         
+        if (inputVersion == SpineVersion::Version38 && outputVersion == SpineVersion::Version43)
+            migrateTransformConstraints38To43(skelData);
+
         // Write data using output version
         switch (outputVersion) {
             case SpineVersion::Version35: {

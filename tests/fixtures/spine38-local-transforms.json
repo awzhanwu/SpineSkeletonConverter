@@ -1,0 +1,100 @@
+{
+  "skeleton": { "spine": "3.8.75" },
+  "bones": [
+    { "name": "root" },
+    { "name": "driver", "parent": "root", "x": 8, "y": 3, "rotation": -170 },
+    { "name": "anchor", "parent": "root", "x": 15, "y": 4, "rotation": -160 },
+    { "name": "joint", "parent": "anchor", "x": 24, "y": 2, "rotation": 165, "shearX": 7 },
+    { "name": "tip", "parent": "joint", "x": 29 },
+    { "name": "peer", "parent": "root", "x": 12, "y": -12, "rotation": -165 },
+    { "name": "observer-before", "parent": "root", "x": 5, "rotation": 150 },
+    { "name": "observer-after", "parent": "root", "x": 5, "rotation": 150 },
+    { "name": "relative", "parent": "root", "x": 5, "y": 11, "rotation": 30 },
+    { "name": "thigh", "parent": "root", "x": -15, "y": -10, "rotation": -75, "length": 20 },
+    { "name": "shin", "parent": "thigh", "x": 20, "rotation": -40, "length": 15 },
+    { "name": "foot", "parent": "shin", "x": 15 },
+    { "name": "goal", "parent": "root", "x": -7, "y": -32 },
+    { "name": "skin-joint", "parent": "root", "x": 20, "y": 25, "rotation": 100, "skin": true },
+    { "name": "skin-driver", "parent": "root", "x": -10, "y": 15, "rotation": -169, "skin": true },
+    { "name": "skin-tip", "parent": "skin-joint", "x": 10, "y": 3, "rotation": 27, "skin": true }
+  ],
+  "ik": [
+    { "name": "reach", "order": 0, "bones": ["thigh", "shin"], "target": "goal" }
+  ],
+  "transform": [
+    {
+      "name": "chain", "order": 1, "bones": ["joint", "peer"], "target": "driver", "local": true,
+      "rotation": -10, "x": 1, "y": -1, "translateMix": 0.25, "rotateMix": 0.4, "scaleMix": 0.25, "shearMix": 0
+    },
+    {
+      "name": "read-early", "order": 2, "bones": ["observer-before"], "target": "joint", "local": true,
+      "rotateMix": 0.6, "translateMix": 0.5, "scaleMix": 0, "shearMix": 0
+    },
+    {
+      "name": "move-parent", "order": 3, "bones": ["anchor"], "target": "driver", "local": true,
+      "rotateMix": 0.3, "translateMix": 0.7, "scaleMix": 0, "shearMix": 0
+    },
+    {
+      "name": "read-late", "order": 4, "bones": ["observer-after"], "target": "joint", "local": true,
+      "rotateMix": 0.6, "translateMix": 0.5, "scaleMix": 0, "shearMix": 0
+    },
+    {
+      "name": "add-local", "order": 5, "bones": ["relative"], "target": "driver", "local": true, "relative": true,
+      "rotation": 19, "x": -3, "y": 1, "scaleX": 0.2, "scaleY": -0.2, "shearY": 10,
+      "rotateMix": 0.4, "translateMix": 0.25, "scaleMix": 0.3, "shearMix": 0.2
+    },
+    {
+      "name": "optional-tip", "order": 6, "bones": ["skin-tip"], "target": "skin-driver", "local": true, "skin": true,
+      "rotateMix": 0.3, "translateMix": 0.7, "scaleMix": 0, "shearMix": 0
+    },
+    {
+      "name": "optional-local", "order": 7, "bones": ["skin-joint"], "target": "skin-driver", "local": true, "skin": true,
+      "rotateMix": 0.3, "translateMix": 0.7, "scaleMix": 0, "shearMix": 0
+    }
+  ],
+  "skins": [
+    { "name": "default", "attachments": {} },
+    { "name": "extra", "bones": ["skin-tip", "skin-driver"], "transform": ["optional-tip", "optional-local"], "attachments": {} }
+  ],
+  "animations": {
+    "idle": {
+      "bones": {
+        "driver": {
+          "rotate": [{ "angle": 4, "curve": 0.25, "c2": 0.1, "c3": 0.8, "c4": 0.85 }, { "time": 1, "angle": 26 }],
+          "translate": [{ "x": 4, "y": 2 }, { "time": 1, "x": 2, "y": 7 }]
+        },
+        "goal": { "translate": [{ "x": 1, "y": -1 }, { "time": 1, "x": -6, "y": -2 }] },
+        "joint": {
+          "rotate": [{ "angle": 0 }, { "time": 1, "angle": 7 }],
+          "translate": [{ "x": 3, "y": 2 }, { "time": 1, "x": -2, "y": 0 }],
+          "shear": [{ "x": -2, "y": 4 }, { "time": 1, "x": 2, "y": 6 }]
+        },
+        "skin-driver": { "rotate": [{ "angle": 15 }, { "time": 1, "angle": -5 }] }
+      },
+      "transform": {
+        "chain": [
+          { "rotateMix": 0.22, "translateMix": 0.2, "scaleMix": 0.5, "shearMix": 0, "curve": 0.3, "c2": 0.1, "c3": 0.8, "c4": 0.9 },
+          { "time": 1, "rotateMix": 0.7, "translateMix": 0.6, "scaleMix": 0.2, "shearMix": 0 }
+        ]
+      }
+    },
+    "walk": {
+      "bones": {
+        "driver": {
+          "rotate": [{ "angle": 0 }, { "time": 1, "angle": 140 }, { "time": 2, "angle": 60 }],
+          "scale": [{ "x": 1, "y": 1 }, { "time": 2, "x": 1.2, "y": 0.8 }]
+        },
+        "goal": { "translate": [{ "x": 2, "y": -1 }, { "time": 1, "x": -4, "y": -6 }, { "time": 2, "x": 2, "y": -1 }] },
+        "joint": { "rotate": [{ "angle": 0 }, { "time": 2, "angle": 40 }] },
+        "skin-driver": { "rotate": [{ "angle": 0 }, { "time": 2, "angle": 35 }] }
+      },
+      "transform": {
+        "chain": [
+          { "rotateMix": 0.25, "translateMix": 0.2, "scaleMix": 0.2, "shearMix": 0, "curve": "stepped" },
+          { "time": 1, "rotateMix": 0.55, "translateMix": 0.3, "scaleMix": 0.5, "shearMix": 0 },
+          { "time": 2, "rotateMix": 0.7, "translateMix": 0.6, "scaleMix": 0.35, "shearMix": 0 }
+        ]
+      }
+    }
+  }
+}

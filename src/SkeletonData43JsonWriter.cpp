@@ -467,7 +467,8 @@ Json writeJsonData(const SkeletonData& skeletonData) {
                     if (frame.value2 != 1.0f) frameJson["mixX"] = frame.value2;
                     if (frame.value3 != frame.value2) frameJson["mixY"] = frame.value3;
                     if (frame.value4 != 1.0f) frameJson["mixScaleX"] = frame.value4;
-                    if (frame.value5 != 1.0f) frameJson["mixScaleY"] = frame.value5;
+                    // 4.3 readers have used both 1 and mixScaleX as the default.
+                    if (frame.value5 != 1.0f || frame.value4 != 1.0f) frameJson["mixScaleY"] = frame.value5;
                     if (frame.value6 != 1.0f) frameJson["mixShearY"] = frame.value6;
                     writeCurve(frame, frameJson);
                     transformJson.push_back(frameJson);

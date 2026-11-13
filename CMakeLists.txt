@@ -40,6 +40,7 @@ add_executable(SpineSkeletonDataConverter
     "src/OrderConverter.cpp"
     "src/RotateTimelineConverter.cpp"
     "src/SpacingModeConverter.cpp"
+    "src/TransformConstraint38Converter.cpp"
     "src/SkeletonData35BinaryReader.cpp"
     "src/SkeletonData35BinaryWriter.cpp"
     "src/SkeletonData35JsonReader.cpp"
@@ -94,7 +95,7 @@ if(WIN32)
     )
 endif()
 
-option(SPINE43_RUNTIME_TESTS "Test with the official Spine 4.3 C++ runtime" OFF)
+option(SPINE43_RUNTIME_TESTS "Test with the official Spine 3.8 and 4.3 C++ runtimes" OFF)
 if(SPINE43_RUNTIME_TESTS)
     enable_testing()
     add_subdirectory(tests)

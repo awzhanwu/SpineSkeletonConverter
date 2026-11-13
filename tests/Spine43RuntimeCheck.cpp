@@ -1,4 +1,4 @@
-#include <spine/spine.h>
+#include "HeadlessSpine.h"
 
 #include "json.hpp"
 
@@ -15,38 +15,9 @@
 #include <string>
 #include <string_view>
 
-namespace spine {
-SpineExtension* getDefaultExtension() {
-    return new DefaultSpineExtension();
-}
-}
-
 namespace {
 using namespace spine;
 using Json = nlohmann::json;
-
-// The readers still construct real runtime attachments and sequences. No atlas
-// or renderer is needed to compare the skeleton and animation data.
-class HeadlessLoader : public AttachmentLoader {
-    RegionAttachment* newRegionAttachment(Skin&, const String&, const String& name, const String&, Sequence* sequence) override {
-        return new (__FILE__, __LINE__) RegionAttachment(name, sequence);
-    }
-    MeshAttachment* newMeshAttachment(Skin&, const String&, const String& name, const String&, Sequence* sequence) override {
-        return new (__FILE__, __LINE__) MeshAttachment(name, sequence);
-    }
-    BoundingBoxAttachment* newBoundingBoxAttachment(Skin&, const String&, const String& name) override {
-        return new (__FILE__, __LINE__) BoundingBoxAttachment(name);
-    }
-    PathAttachment* newPathAttachment(Skin&, const String&, const String& name) override {
-        return new (__FILE__, __LINE__) PathAttachment(name);
-    }
-    PointAttachment* newPointAttachment(Skin&, const String&, const String& name) override {
-        return new (__FILE__, __LINE__) PointAttachment(name);
-    }
-    ClippingAttachment* newClippingAttachment(Skin&, const String&, const String& name) override {
-        return new (__FILE__, __LINE__) ClippingAttachment(name);
-    }
-};
 
 std::string str(const String& value) {
     return value.isEmpty() ? "" : value.buffer();
@@ -197,9 +168,11 @@ Json animation(Animation& value, const AttachmentNames& attachments) {
         if (auto* constraint = dynamic_cast<ConstraintTimeline*>(timeline)) entry["constraint"] = constraint->getConstraintIndex();
         if (auto* curve = dynamic_cast<CurveTimeline*>(timeline)) {
             auto& curves = curve->getCurves();
-            // JSON preallocates a Bezier for every segment. Compare the populated data.
+            // JSON preallocates curve storage. The last sample of a Bezier is
+            // a time/value pair, so preserve its value even when it is zero.
+            const size_t frames = timeline->getFrameCount();
             size_t count = curves.size();
-            while (count > timeline->getFrameCount() && curves[count - 1] == 0) --count;
+            while (count > frames && curves[count - 2] == 0 && curves[count - 1] == 0) count -= 2;
             entry["curves"] = Json::array();
             for (size_t j = 0; j < count; ++j) entry["curves"].push_back(curves[j]);
         }

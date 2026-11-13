@@ -663,6 +663,7 @@ namespace spine43 {
 }
 
 void convertCurve3xTo4x(SkeletonData& skeleton);
+void migrateTransformConstraints38To43(SkeletonData& skeleton);
 void convertCurve4xTo3x(SkeletonData& skeleton);
 void removeCurve(SkeletonData& skeleton);
 void convertOrder42ToBelow(SkeletonData& skeleton);

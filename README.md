@@ -115,15 +115,29 @@ python tools/SpineConverter.py <input_dir> <output_dir> \
 
 ### Spine 4.3 Runtime compatibility
 
-Build the converter and the independent runtime verifier with CMake 3.20 or later.
+Build the converter and the independent runtime checks with CMake 3.20 or later and Python 3.8 or later.
 
 ```sh
 cmake -S . -B build -DSPINE43_RUNTIME_TESTS=ON
-cmake --build build --config Release --target SpineSkeletonDataConverter Spine43RuntimeCheck
+cmake --build build --config Release --target SpineSkeletonDataConverter Spine43RuntimeCheck Spine38PoseSample Spine43PoseSample
 ctest --test-dir build -C Release --output-on-failure
 ```
 
 The tests compare the data loaded by the official `SkeletonJson` and `SkeletonBinary` readers. They exercise editor exports, a 3.8 binary upgrade, and fixtures for 4.3 features such as sliders, linked meshes across slots, and draw order folders. CMake fetches the pinned runtime and its examples for the tests. A local checkout of that revision can be supplied through `FETCHCONTENT_SOURCE_DIR_SPINE43_RUNTIME`. [Official Spine 4.3 C++ reader](https://github.com/EsotericSoftware/spine-runtimes/blob/405f43295b5832e86d9df3a80beb6bc9df772312/spine-cpp/src/spine/SkeletonBinary.cpp)
+
+The 3.8 upgrade tests compare world position, rotation, scale, and the full bone transform matrix in setup pose and at 60 Hz through each animation. They cover absolute and relative local transforms, animated constraint mixes, a descendant constrained before its parent, multiple targets, skin activation, and leg IK. The 3.8 reference revision accepts the original 3.8.75 exports directly. An offline build can set `FETCHCONTENT_SOURCE_DIR_SPINE38_REFERENCE` to a checkout of that revision. [Official Spine 3.8 reference revision](https://github.com/EsotericSoftware/spine-runtimes/tree/c0699e23a0c8799710323bdf0e076e18f6ba41a2)
+
+### Upgrading local transform constraints from 3.8
+
+For a 3.8 to 4.3 conversion, the converter generates native constraints that wrap the live local rotation difference before mixing it. When 3.8 would re-evaluate a previously constrained bone from its animated local pose, the 4.3 output restores that pose at the corresponding point in the constraint order. Start from the original 3.8 export so the converter has the legacy constraint flags and animation keys.
+
+The 3.8 C++ runtime divides an absolute local scale mix by the incoming scale and can accumulate absolute local shear between updates. With non-unit target scales, the converter uses the 4.3 scale mix. It reproduces the immediate applied shear and emits a warning when the authored shear values can cause accumulation. A skin-specific pose reset can be encoded for named non-default skins. Resets that depend on the absence of a skin, and default-skin-specific resets, have limited representation in SKEL. Blends across different animations and runtime edits to individual bone poses can also differ.
+
+To compare your own assets, run the following with the executable paths for your build. Add `--channel rotate`, `translate`, `scale`, or `shear` to isolate a transform mix in both runtimes.
+
+```sh
+python tests/compare_spine_poses.py --runtime38 path/to/Spine38PoseSample --runtime43 path/to/Spine43PoseSample --report poses.json original.skel converted.spine-json converted.skel
+```
 
 For files produced by the previous converter, pass the old `.skel` as input and write a new `.skel` with `-v 4.3.2`. The converter can also read the grouped constraint fields used by its earlier 4.3 JSON output. New 4.3 JSON uses the runtime's `constraints` array.
 

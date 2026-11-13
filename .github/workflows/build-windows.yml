@@ -17,6 +17,11 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Configure CMake
         run: >
           cmake -S . -B build
@@ -28,10 +33,10 @@ jobs:
         run: >
           cmake --build build
           --config Release
-          --target SpineSkeletonDataConverter Spine43RuntimeCheck
+          --target SpineSkeletonDataConverter Spine43RuntimeCheck Spine38PoseSample Spine43PoseSample
           --parallel 2
 
-      - name: Test with official Spine 4.3 Runtime
+      - name: Test with official Spine 3.8 and 4.3 Runtimes
         run: ctest --test-dir build -C Release --output-on-failure
 
       - name: Verify executable
