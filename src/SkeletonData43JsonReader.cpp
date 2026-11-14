@@ -1,13 +1,31 @@
-#include "SkeletonData.h"
+#include "SkeletonData43.h"
 
 namespace spine43 {
+namespace {
+
+OptStr optionalString(const Json& object, const char* key) {
+    auto it = object.find(key);
+    if (it == object.end() || it->is_null()) return std::nullopt;
+    return it->get<std::string>();
+}
+
+TimelineFrame readDrawOrderKey(const Json& key) {
+    TimelineFrame frame;
+    frame.time = key.value("time", 0.0f);
+    if (key.contains("offsets")) {
+        for (const auto& offset : key["offsets"]) {
+            frame.offsets.emplace_back(offset.at("slot").get<std::string>(), offset.value("offset", 0));
+        }
+    }
+    return frame;
+}
 
 Sequence readSequence(const Json& j) {
     Sequence sequence;
     sequence.count = j.value("count", 0);
     sequence.start = j.value("start", 1);
     sequence.digits = j.value("digits", 0);
-    sequence.setupIndex = j.value("setupIndex", 0);
+    sequence.setupIndex = j.value("setup", j.value("setupIndex", 0));
     return sequence;
 }
 
@@ -33,11 +51,13 @@ void readTimeline(const Json& j, Timeline& timeline, int valueNum, const std::st
     }
 }
 
+} // namespace
+
 SkeletonData readJsonData(const Json& j) {
     SkeletonData skeletonData; 
 
     const auto& skeleton = j["skeleton"];
-    skeletonData.hash = skeleton.contains("hash") ? base64ToUint64(skeleton["hash"]) : 0;
+    skeletonData.hash = base64ToUint64(optionalString(skeleton, "hash").value_or(""));
     if (skeleton.contains("spine")) skeletonData.version = skeleton["spine"];
     skeletonData.x = skeleton.value("x", 0.0f);
     skeletonData.y = skeleton.value("y", 0.0f);
@@ -45,8 +65,8 @@ SkeletonData readJsonData(const Json& j) {
     skeletonData.height = skeleton.value("height", 0.0f);
     skeletonData.referenceScale = skeleton.value("referenceScale", 100.0f);
     skeletonData.fps = skeleton.value("fps", 30.0f);
-    if (skeleton.contains("images")) skeletonData.imagesPath = skeleton["images"];
-    if (skeleton.contains("audio")) skeletonData.audioPath = skeleton["audio"];
+    skeletonData.imagesPath = optionalString(skeleton, "images");
+    skeletonData.audioPath = optionalString(skeleton, "audio");
     skeletonData.nonessential = !(skeletonData.fps == 30.0f && skeletonData.imagesPath == std::nullopt && skeletonData.audioPath == std::nullopt);
 
     /* Bones */
@@ -67,7 +87,11 @@ SkeletonData readJsonData(const Json& j) {
             boneData.skinRequired = boneJson.value("skin", false);
             if (boneJson.contains("color")) boneData.color = stringToColor(boneJson["color"], true);
             boneData.icon = boneJson.value("icon", "");
+            boneData.iconSize = boneJson.value("iconSize", 1.0f);
+            boneData.iconRotation = boneJson.value("iconRotation", 0.0f);
             boneData.visible = boneJson.value("visible", true);
+            skeletonData.nonessential |= boneData.color.has_value() || !boneData.icon->empty() ||
+                boneData.iconSize != 1.0f || boneData.iconRotation != 0.0f || !boneData.visible;
             skeletonData.bones.push_back(boneData);
         }
     }
@@ -83,13 +107,27 @@ SkeletonData readJsonData(const Json& j) {
             if (slotJson.contains("attachment") && !slotJson["attachment"].is_null()) slotData.attachmentName = slotJson["attachment"];
             slotData.blendMode = blendModeMap.at(slotJson.value("blend", "normal"));
             slotData.visible = slotJson.value("visible", true);
+            skeletonData.nonessential |= !slotData.visible;
             skeletonData.slots.push_back(slotData);
         }
     }
 
+    // Accept the grouped constraints emitted by older versions of this converter.
+    Json grouped;
+    const bool native = j.contains("constraints");
+    if (native) {
+        size_t order = 0;
+        for (auto constraint : j.at("constraints")) {
+            const auto type = enumValue<ConstraintType>(constraintNames, constraint.at("type").get<std::string>());
+            constraint["order"] = order++;
+            grouped[constraintNames[static_cast<size_t>(type)]].push_back(std::move(constraint));
+        }
+    }
+    const auto& constraints = native ? grouped : j;
+
     /* IK constraints */
-    if (j.contains("ik")) {
-        for (const auto& ikJson : j["ik"]) {
+    if (constraints.contains("ik")) {
+        for (const auto& ikJson : constraints["ik"]) {
             IKConstraintData ikData;
             if (ikJson.contains("name")) ikData.name = ikJson["name"];
             ikData.order = ikJson.value("order", 0);
@@ -102,19 +140,20 @@ SkeletonData readJsonData(const Json& j) {
             ikData.compress = ikJson.value("compress", false);
             ikData.stretch = ikJson.value("stretch", false);
             ikData.uniform = ikJson.value("uniform", false);
+            ikData.scaleY = enumValue<ScaleYMode>(scaleYNames, ikJson.value("scaleY", "none"));
             skeletonData.ikConstraints.push_back(ikData);
         }
     }
 
     /* Transform constraints */
-    if (j.contains("transform")) {
-        for (const auto& transformJson : j["transform"]) {
+    if (constraints.contains("transform")) {
+        for (const auto& transformJson : constraints["transform"]) {
             TransformConstraintData transformData;
             if (transformJson.contains("name")) transformData.name = transformJson["name"];
             transformData.order = transformJson.value("order", 0);
             transformData.skinRequired = transformJson.value("skin", false);
             if (transformJson.contains("bones")) transformData.bones = transformJson["bones"].get<std::vector<std::string>>();
-            if (transformJson.contains("target")) transformData.target = transformJson["target"];
+            transformData.target = optionalString(transformJson, native ? "source" : "target");
             transformData.mixRotate = transformJson.value("mixRotate", 1.0f);
             transformData.mixX = transformJson.value("mixX", 1.0f);
             transformData.mixY = transformJson.value("mixY", transformData.mixX);
@@ -129,19 +168,48 @@ SkeletonData readJsonData(const Json& j) {
             transformData.offsetShearY = transformJson.value("shearY", 0.0f);
             transformData.relative = transformJson.value("relative", false);
             transformData.local = transformJson.value("local", false);
+            if (native) {
+                auto& mapping = transformData.mapping.emplace();
+                mapping.localSource = transformJson.value("localSource", false);
+                mapping.localTarget = transformJson.value("localTarget", false);
+                mapping.additive = transformJson.value("additive", false);
+                mapping.clamp = transformJson.value("clamp", false);
+                transformData.local = mapping.localSource && mapping.localTarget;
+                transformData.relative = mapping.additive;
+                std::array<bool, 6> used{};
+                if (transformJson.contains("properties")) {
+                    for (const auto& [property, json] : transformJson["properties"].items()) {
+                        TransformFromProperty from{enumValue<TransformProperty>(propertyNames, property), json.value("offset", 0.0f), {}};
+                        if (json.contains("to")) {
+                            for (const auto& [target, values] : json["to"].items()) {
+                                const auto to = enumValue<TransformProperty>(propertyNames, target);
+                                used[static_cast<size_t>(to)] = true;
+                                from.to.push_back({to, values.value("offset", 0.0f), values.value("max", 1.0f), values.value("scale", 1.0f)});
+                            }
+                        }
+                        if (!from.to.empty()) mapping.properties.push_back(std::move(from));
+                    }
+                }
+                if (!used[0]) transformData.mixRotate = 0;
+                if (!used[1]) transformData.mixX = 0;
+                transformData.mixY = used[2] ? transformJson.value("mixY", transformData.mixX) : 0;
+                if (!used[3]) transformData.mixScaleX = 0;
+                transformData.mixScaleY = used[4] ? transformJson.value("mixScaleY", transformData.mixScaleX) : 0;
+                if (!used[5]) transformData.mixShearY = 0;
+            }
             skeletonData.transformConstraints.push_back(transformData);
         }
     }
 
     /* Path constraints */
-    if (j.contains("path")) {
-        for (const auto& pathJson : j["path"]) {
+    if (constraints.contains("path")) {
+        for (const auto& pathJson : constraints["path"]) {
             PathConstraintData pathData;
             if (pathJson.contains("name")) pathData.name = pathJson["name"];
             pathData.order = pathJson.value("order", 0);
             pathData.skinRequired = pathJson.value("skin", false);
             if (pathJson.contains("bones")) pathData.bones = pathJson["bones"].get<std::vector<std::string>>();
-            if (pathJson.contains("target")) pathData.target = pathJson["target"];
+            pathData.target = optionalString(pathJson, native ? "slot" : "target");
             pathData.positionMode = positionModeMap.at(pathJson.value("positionMode", "percent"));
             pathData.spacingMode = spacingModeMap.at(pathJson.value("spacingMode", "length"));
             pathData.rotateMode = rotateModeMap.at(pathJson.value("rotateMode", "tangent"));
@@ -156,8 +224,8 @@ SkeletonData readJsonData(const Json& j) {
     }
 
     /* Physics constraints */
-    if (j.contains("physics")) {
-        for (const auto& physicsJson : j["physics"]) {
+    if (constraints.contains("physics")) {
+        for (const auto& physicsJson : constraints["physics"]) {
             PhysicsConstraintData physicsData;
             if (physicsJson.contains("name")) physicsData.name = physicsJson["name"];
             physicsData.order = physicsJson.value("order", 0);
@@ -167,12 +235,13 @@ SkeletonData readJsonData(const Json& j) {
             physicsData.y = physicsJson.value("y", 0.0f);
             physicsData.rotate = physicsJson.value("rotate", 0.0f);
             physicsData.scaleX = physicsJson.value("scaleX", 0.0f);
+            physicsData.scaleY = enumValue<ScaleYMode>(scaleYNames, physicsJson.value("scaleY", "none"));
             physicsData.shearX = physicsJson.value("shearX", 0.0f);
             physicsData.limit = physicsJson.value("limit", 5000.0f);
             physicsData.fps = physicsJson.value("fps", 60.0f);
-            physicsData.inertia = physicsJson.value("inertia", 1.0f);
+            physicsData.inertia = physicsJson.value("inertia", native ? 0.5f : 1.0f);
             physicsData.strength = physicsJson.value("strength", 100.0f);
-            physicsData.damping = physicsJson.value("damping", 1.0f);
+            physicsData.damping = physicsJson.value("damping", native ? 0.85f : 1.0f);
             physicsData.mass = physicsJson.value("mass", 1.0f);
             physicsData.wind = physicsJson.value("wind", 0.0f);
             physicsData.gravity = physicsJson.value("gravity", 0.0f);
@@ -188,6 +257,32 @@ SkeletonData readJsonData(const Json& j) {
         }
     }
 
+    if (constraints.contains("slider")) {
+        for (const auto& json : constraints["slider"]) {
+            SliderData slider;
+            slider.name = json.at("name");
+            slider.order = json.value("order", 0);
+            slider.animation = optionalString(json, "animation");
+            slider.skinRequired = json.value("skin", false);
+            slider.loop = json.value("loop", false);
+            slider.additive = json.value("additive", false);
+            slider.mix = json.value("mix", 1.0f);
+            slider.bone = optionalString(json, "bone");
+            if (slider.bone) {
+                slider.property = enumValue<TransformProperty>(propertyNames, json.at("property").get<std::string>());
+                slider.local = json.value("local", false);
+                slider.max = json.value("max", 0.0f);
+                slider.from = json.value("from", 0.0f);
+                slider.to = json.value("to", 0.0f);
+                slider.scale = json.value("scale", 1.0f);
+                skeletonData.nonessential |= slider.max != 0.0f;
+            } else {
+                slider.time = json.value("time", 0.0f);
+            }
+            skeletonData.sliders.push_back(slider);
+        }
+    }
+
     /* Skins */
     if (j.contains("skins")) {
         for (const auto& skinJson : j["skins"]) {
@@ -198,6 +293,11 @@ SkeletonData readJsonData(const Json& j) {
             if (skinJson.contains("transform")) skinData.transform = skinJson["transform"].get<std::vector<std::string>>();
             if (skinJson.contains("path")) skinData.path = skinJson["path"].get<std::vector<std::string>>();
             if (skinJson.contains("physics")) skinData.physics = skinJson["physics"].get<std::vector<std::string>>();
+            if (skinJson.contains("slider")) skinData.slider = skinJson["slider"].get<std::vector<std::string>>();
+            if (skinJson.contains("color")) {
+                skinData.color = stringToColor(skinJson["color"], true);
+                skeletonData.nonessential = true;
+            }
             if (skinJson.contains("attachments")) {
                 for (const auto& [slotName, slotAttachments] : skinJson["attachments"].items()) {
                     skinData.attachments[slotName] = {};
@@ -206,6 +306,13 @@ SkeletonData readJsonData(const Json& j) {
                         attachment.name = attachmentJson.value("name", attachmentName);
                         attachment.path = attachmentJson.value("path", attachment.name);
                         attachment.type = attachmentTypeMap.at(attachmentJson.value("type", "region"));
+                        if (attachment.type == AttachmentType_Mesh && attachmentJson.contains("source")) {
+                            attachment.type = AttachmentType_Linkedmesh;
+                        }
+                        skeletonData.nonessential |= attachmentJson.contains("edges") ||
+                            ((attachment.type != AttachmentType_Region) && (attachmentJson.contains("width") || attachmentJson.contains("height"))) ||
+                            ((attachment.type != AttachmentType_Region && attachment.type != AttachmentType_Mesh &&
+                              attachment.type != AttachmentType_Linkedmesh) && attachmentJson.contains("color"));
                         switch (attachment.type) {
                             case AttachmentType_Region: {
                                 RegionAttachment region;
@@ -214,19 +321,19 @@ SkeletonData readJsonData(const Json& j) {
                                 region.rotation = attachmentJson.value("rotation", 0.0f);
                                 region.scaleX = attachmentJson.value("scaleX", 1.0f);
                                 region.scaleY = attachmentJson.value("scaleY", 1.0f);
-                                region.width = attachmentJson.value("width", 32.0f);
-                                region.height = attachmentJson.value("height", 32.0f);
+                                region.width = attachmentJson.value("width", 0.0f);
+                                region.height = attachmentJson.value("height", 0.0f);
                                 if (attachmentJson.contains("color")) region.color = stringToColor(attachmentJson["color"], true);
-                                if (attachmentJson.contains("sequence")) region.sequence = readSequence(attachmentJson["sequence"]);
+                                if (attachmentJson.contains("sequence") && !attachmentJson["sequence"].is_null()) region.sequence = readSequence(attachmentJson["sequence"]);
                                 attachment.data = region;
                                 break; 
                             }
                             case AttachmentType_Mesh: {
                                 MeshAttachment mesh;
-                                mesh.width = attachmentJson.value("width", 32.0f);
-                                mesh.height = attachmentJson.value("height", 32.0f);
+                                mesh.width = attachmentJson.value("width", 0.0f);
+                                mesh.height = attachmentJson.value("height", 0.0f);
                                 if (attachmentJson.contains("color")) mesh.color = stringToColor(attachmentJson["color"], true);
-                                if (attachmentJson.contains("sequence")) mesh.sequence = readSequence(attachmentJson["sequence"]);
+                                if (attachmentJson.contains("sequence") && !attachmentJson["sequence"].is_null()) mesh.sequence = readSequence(attachmentJson["sequence"]);
                                 mesh.hullLength = attachmentJson.value("hull", 0);
                                 mesh.triangles = attachmentJson.value("triangles", std::vector<unsigned short>{});
                                 mesh.edges = attachmentJson.value("edges", std::vector<unsigned short>{});
@@ -237,13 +344,16 @@ SkeletonData readJsonData(const Json& j) {
                             }
                             case AttachmentType_Linkedmesh: {
                                 LinkedmeshAttachment linkedMesh;
-                                linkedMesh.width = attachmentJson.value("width", 32.0f);
-                                linkedMesh.height = attachmentJson.value("height", 32.0f);
+                                linkedMesh.width = attachmentJson.value("width", 0.0f);
+                                linkedMesh.height = attachmentJson.value("height", 0.0f);
                                 if (attachmentJson.contains("color")) linkedMesh.color = stringToColor(attachmentJson["color"], true);
-                                if (attachmentJson.contains("sequence")) linkedMesh.sequence = readSequence(attachmentJson["sequence"]);
-                                linkedMesh.parentMesh = attachmentJson["parent"];
-                                linkedMesh.timelines = attachmentJson.value("timelines", 1);
-                                if (attachmentJson.contains("skin")) linkedMesh.skin = attachmentJson["skin"];
+                                if (attachmentJson.contains("sequence") && !attachmentJson["sequence"].is_null()) linkedMesh.sequence = readSequence(attachmentJson["sequence"]);
+                                linkedMesh.parentMesh = attachmentJson.at(attachmentJson.contains("source") ? "source" : "parent");
+                                if (attachmentJson.contains("timelines") && attachmentJson["timelines"].is_number_integer())
+                                    linkedMesh.timelines = attachmentJson["timelines"].get<int>();
+                                else linkedMesh.timelines = attachmentJson.value("timelines", true);
+                                linkedMesh.skin = optionalString(attachmentJson, "skin");
+                                linkedMesh.sourceSlot = optionalString(attachmentJson, "slot");
                                 attachment.data = linkedMesh;
                                 break; 
                             }
@@ -277,9 +387,11 @@ SkeletonData readJsonData(const Json& j) {
                             }
                             case AttachmentType_Clipping: {
                                 ClippingAttachment clipping;
+                                clipping.convex = attachmentJson.value("convex", false);
+                                clipping.inverse = attachmentJson.value("inverse", false);
                                 clipping.vertexCount = attachmentJson.value("vertexCount", 0);
                                 if (attachmentJson.contains("color")) clipping.color = stringToColor(attachmentJson["color"], true);
-                                if (attachmentJson.contains("end")) clipping.endSlot = attachmentJson["end"];
+                                clipping.endSlot = optionalString(attachmentJson, "end");
                                 clipping.vertices = attachmentJson.value("vertices", std::vector<float>{});
                                 attachment.data = clipping;
                                 break; 
@@ -300,9 +412,9 @@ SkeletonData readJsonData(const Json& j) {
             eventData.name = eventName;
             eventData.intValue = eventJson.value("int", 0);
             eventData.floatValue = eventJson.value("float", 0.0f);
-            if (eventJson.contains("string")) eventData.stringValue = eventJson["string"];
-            if (eventJson.contains("audio")) {
-                eventData.audioPath = eventJson["audio"];
+            eventData.stringValue = optionalString(eventJson, "string");
+            eventData.audioPath = optionalString(eventJson, "audio");
+            if (eventData.audioPath && !eventData.audioPath->empty()) {
                 eventData.volume = eventJson.value("volume", 1.0f);
                 eventData.balance = eventJson.value("balance", 0.0f);
             }
@@ -441,7 +553,7 @@ SkeletonData readJsonData(const Json& j) {
                         frame.value2 = frameJson.value("mixX", 1.0f); 
                         frame.value3 = frameJson.value("mixY", frame.value2);
                         frame.value4 = frameJson.value("mixScaleX", 1.0f);
-                        frame.value5 = frameJson.value("mixScaleY", frame.value4);
+                        frame.value5 = frameJson.value("mixScaleY", native ? 1.0f : frame.value4);
                         frame.value6 = frameJson.value("mixShearY", 1.0f);
                         readCurve(frameJson, frame);
                         transformTimeline.push_back(frame);
@@ -506,6 +618,14 @@ SkeletonData readJsonData(const Json& j) {
                     animationData.physics[physicsName] = physicsTimeline;
                 }
             }
+            if (animationJson.contains("slider")) {
+                for (const auto& [name, timelines] : animationJson["slider"].items()) {
+                    for (const auto& [type, keys] : timelines.items()) {
+                        if (type != "time" && type != "mix") throw std::runtime_error("Unknown slider timeline: " + type);
+                        readTimeline(keys, animationData.slider[name][type], 1, "value", "", 1.0f);
+                    }
+                }
+            }
             if (animationJson.contains("attachments")) {
                 for (const auto& [skinName, skinJson] : animationJson["attachments"].items()) {
                     for (const auto& [slotName, slotJson] : skinJson.items()) {
@@ -542,41 +662,42 @@ SkeletonData readJsonData(const Json& j) {
             }
             if (animationJson.contains("drawOrder")) {
                 for (const auto& frameJson : animationJson["drawOrder"]) {
-                    TimelineFrame frame;
-                    frame.time = frameJson.value("time", 0.0f);
-                    if (frameJson.contains("offsets")) {
-                        for (const auto& offsetJson : frameJson["offsets"]) {
-                            frame.offsets.push_back({offsetJson["slot"], offsetJson.value("offset", 0)});
-                        }
-                    }
-                    animationData.drawOrder.push_back(frame);
+                    animationData.drawOrder.push_back(readDrawOrderKey(frameJson));
+                }
+            }
+            if (animationJson.contains("drawOrderFolder")) {
+                for (const auto& folder : animationJson["drawOrderFolder"]) {
+                    DrawOrderFolder drawOrder;
+                    drawOrder.slots = folder.at("slots").get<std::vector<std::string>>();
+                    for (const auto& key : folder.at("keys")) drawOrder.keys.push_back(readDrawOrderKey(key));
+                    animationData.drawOrderFolders.push_back(std::move(drawOrder));
                 }
             }
             if (animationJson.contains("events")) {
                 for (const auto& frameJson : animationJson["events"]) {
                     TimelineFrame frame;
                     frame.time = frameJson.value("time", 0.0f);
-                    if (frameJson.contains("name")) frame.str1 = frameJson["name"]; 
-                    int eventIndex = -1; 
-                    for (size_t i = 0; i < skeletonData.events.size(); i++) {
-                        if (skeletonData.events[i].name == frame.str1.value()) {
-                            eventIndex = static_cast<int>(i);
-                            break;
-                        }
-                    }
-                    EventData eventData = skeletonData.events[eventIndex]; 
+                    frame.str1 = frameJson.at("name");
+                    auto event = std::find_if(skeletonData.events.begin(), skeletonData.events.end(),
+                        [&](const EventData& e) { return e.name == frame.str1; });
+                    if (event == skeletonData.events.end()) throw std::runtime_error("Unknown event: " + *frame.str1);
+                    const EventData& eventData = *event;
                     frame.int1 = frameJson.value("int", eventData.intValue);
                     frame.value1 = frameJson.value("float", eventData.floatValue);
-                    if (frameJson.contains("string")) frame.str2 = frameJson["string"]; 
-                    else frame.str2 = eventData.stringValue;
-                    if (eventData.audioPath) {
-                        frame.value2 = frameJson.value("volume", 1.0f);
-                        frame.value3 = frameJson.value("balance", 0.0f);
+                    frame.str2 = optionalString(frameJson, "string");
+                    if (!frame.str2) frame.str2 = eventData.stringValue;
+                    if (eventData.audioPath && !eventData.audioPath->empty()) {
+                        frame.value2 = frameJson.value("volume", eventData.volume);
+                        frame.value3 = frameJson.value("balance", eventData.balance);
                     }
                     animationData.events.push_back(frame);
                 }
             }
-            skeletonData.animations.push_back(animationData);
+            if (animationJson.contains("color")) {
+                animationData.color = stringToColor(animationJson["color"], true);
+                skeletonData.nonessential = true;
+            }
+            skeletonData.animations.push_back(std::move(animationData));
         }
     }
 

@@ -1,0 +1,32 @@
+function(run)
+    execute_process(COMMAND ${ARGV} RESULT_VARIABLE result)
+    if(NOT result STREQUAL "0")
+        message(FATAL_ERROR "Command failed (${result}): ${ARGV}")
+    endif()
+endfunction()
+
+file(MAKE_DIRECTORY "${WORK_DIR}")
+file(REMOVE "${WORK_DIR}/converted.skel" "${WORK_DIR}/converted.json" "${WORK_DIR}/from-json.skel"
+    "${WORK_DIR}/roundtrip.json" "${WORK_DIR}/from-official.json")
+set(skel "${WORK_DIR}/converted.skel")
+set(json "${INPUT}")
+if(UPGRADE)
+    set(json "${WORK_DIR}/converted.json")
+    run("${CONVERTER}" "${INPUT}" "${json}" -v 4.3.2)
+    run("${CONVERTER}" "${INPUT}" "${skel}" -v 4.3.2)
+    run("${VERIFIER}" "${json}" "${skel}")
+    set(skel "${WORK_DIR}/from-json.skel")
+endif()
+
+run("${CONVERTER}" "${json}" "${skel}")
+run("${VERIFIER}" "${json}" "${skel}")
+
+set(roundtrip "${WORK_DIR}/roundtrip.json")
+run("${CONVERTER}" "${skel}" "${roundtrip}")
+run("${VERIFIER}" "${roundtrip}" "${skel}")
+
+if(DEFINED OFFICIAL_SKEL)
+    set(official_json "${WORK_DIR}/from-official.json")
+    run("${CONVERTER}" "${OFFICIAL_SKEL}" "${official_json}")
+    run("${VERIFIER}" "${official_json}" "${OFFICIAL_SKEL}")
+endif()

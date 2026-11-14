@@ -330,6 +330,7 @@ struct LinkedmeshAttachment {
     int timelines = 1; 
     int skinIndex = -1; // temporary field used for binary format reading
     OptStr skin = std::nullopt; 
+    OptStr sourceSlot;
 }; 
 
 struct BoundingboxAttachment {
@@ -357,6 +358,7 @@ struct ClippingAttachment {
     std::vector<float> vertices;
     OptStr endSlot = std::nullopt;
     OptColor color = std::nullopt;
+    bool convex = false, inverse = false;
 }; 
 
 struct Attachment {
@@ -422,6 +424,7 @@ struct BoneData {
     OptColor color = std::nullopt; // Color { 0x9b, 0x9b, 0x9b, 0xff };
     OptStr icon = std::nullopt; 
     bool visible = true; 
+    float iconSize = 1.0f, iconRotation = 0.0f;
 }; 
 
 struct SlotData {
@@ -433,6 +436,25 @@ struct SlotData {
     BlendMode blendMode = BlendMode_Normal; 
     bool visible = true; 
 }; 
+
+enum class ScaleYMode { None, Uniform, Volume };
+enum class TransformProperty { Rotate, X, Y, ScaleX, ScaleY, ShearY };
+
+struct TransformToProperty {
+    TransformProperty property;
+    float offset = 0.0f, max = 1.0f, scale = 1.0f;
+};
+
+struct TransformFromProperty {
+    TransformProperty property;
+    float offset = 0.0f;
+    std::vector<TransformToProperty> to;
+};
+
+struct TransformMapping {
+    bool localSource = false, localTarget = false, additive = false, clamp = false;
+    std::vector<TransformFromProperty> properties;
+};
 
 struct IKConstraintData {
     OptStr name = std::nullopt;
@@ -446,6 +468,7 @@ struct IKConstraintData {
     bool uniform = false; 
     float mix = 1.0f; 
     float softness = 0.0f; 
+    ScaleYMode scaleY = ScaleYMode::None;
 };
 
 struct TransformConstraintData {
@@ -457,6 +480,7 @@ struct TransformConstraintData {
     float mixRotate = 1.0f, mixX = 1.0f, mixY = 1.0f, mixScaleX = 1.0f, mixScaleY = 1.0f, mixShearY = 1.0f; 
     float offsetRotation = 0.0f, offsetX = 0.0f, offsetY = 0.0f, offsetScaleX = 0.0f, offsetScaleY = 0.0f, offsetShearY = 0.0f;
     bool relative = false, local = false; 
+    std::optional<TransformMapping> mapping;
 };
 
 struct PathConstraintData {
@@ -481,6 +505,15 @@ struct PhysicsConstraintData {
     float x = 0.0f, y = 0.0f, rotate = 0.0f, scaleX = 0.0f, shearX = 0.0f, limit = 5000.0f;
     float fps = 60.0f, inertia = 1.0f, strength = 100.0f, damping = 1.0f, mass = 1.0f, wind = 0.0f, gravity = 0.0f, mix = 1.0f;
     bool inertiaGlobal = false, strengthGlobal = false, dampingGlobal = false, massGlobal = false, windGlobal = false, gravityGlobal = false, mixGlobal = false;
+    ScaleYMode scaleY = ScaleYMode::None;
+};
+
+struct SliderData {
+    OptStr name, bone, animation;
+    size_t order = 0;
+    bool skinRequired = false, loop = false, additive = false, local = false;
+    TransformProperty property = TransformProperty::Rotate;
+    float time = 0.0f, mix = 1.0f, max = 0.0f, from = 0.0f, to = 0.0f, scale = 1.0f;
 };
 
 struct Skin {
@@ -492,6 +525,7 @@ struct Skin {
     std::vector<std::string> path;
     std::vector<std::string> physics;
     OptColor color = std::nullopt;
+    std::vector<std::string> slider;
 }; 
 
 struct EventData {
@@ -504,6 +538,11 @@ struct EventData {
     float balance = 0.0f;
 }; 
 
+struct DrawOrderFolder {
+    std::vector<std::string> slots;
+    Timeline keys;
+};
+
 struct Animation {
     std::string name = "";
     std::map<std::string, MultiTimeline> slots; 
@@ -515,6 +554,9 @@ struct Animation {
     std::map<std::string, std::map<std::string, std::map<std::string, MultiTimeline>>> attachments;
     Timeline drawOrder;
     Timeline events;
+    std::map<std::string, MultiTimeline> slider;
+    std::vector<DrawOrderFolder> drawOrderFolders;
+    OptColor color;
 };
 
 struct SkeletonData {
@@ -537,6 +579,7 @@ struct SkeletonData {
     std::vector<Skin> skins; 
     std::vector<EventData> events; 
     std::vector<Animation> animations; 
+    std::vector<SliderData> sliders;
 }; 
 
 /* common functions */
@@ -614,12 +657,13 @@ namespace spine42 {
 }
 namespace spine43 {
     SkeletonData readBinaryData(const Binary&);
-    Binary writeBinaryData(SkeletonData&);
+    Binary writeBinaryData(const SkeletonData&);
     SkeletonData readJsonData(const Json&);
     Json writeJsonData(const SkeletonData&);
 }
 
 void convertCurve3xTo4x(SkeletonData& skeleton);
+void migrateTransformConstraints38To43(SkeletonData& skeleton);
 void convertCurve4xTo3x(SkeletonData& skeleton);
 void removeCurve(SkeletonData& skeleton);
 void convertOrder42ToBelow(SkeletonData& skeleton);

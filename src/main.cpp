@@ -297,6 +297,9 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
             convertOrder42ToBelow(skelData);
         }
         
+        if (inputVersion == SpineVersion::Version38 && outputVersion == SpineVersion::Version43)
+            migrateTransformConstraints38To43(skelData);
+
         // Write data using output version
         switch (outputVersion) {
             case SpineVersion::Version35: {
@@ -448,14 +451,18 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
                         return false;
                     }
                     ofs.write(reinterpret_cast<const char*>(outputData.data()), outputData.size());
+                    ofs.flush();
+                    if (!ofs) throw std::runtime_error("Cannot write output file: " + outputFile);
                 } else {
-                    auto outputJson = spine43::writeJsonData(skelData);
+                    auto outputJson = spine43::writeJsonData(skelData).dump();
                     std::ofstream ofs(u8path(outputFile).c_str());
                     if (!ofs) {
                         std::cerr << "Error: Cannot create output file: " << outputFile << "\n";
                         return false;
                     }
-                    ofs << dumpJson(outputJson);
+                    ofs << outputJson;
+                    ofs.flush();
+                    if (!ofs) throw std::runtime_error("Cannot write output file: " + outputFile);
                 }
                 break;
             }
@@ -475,7 +482,7 @@ bool convertFile(const std::string& inputFile, const std::string& outputFile,
 void printUsage(const char* programName) {
     std::cout << "Usage: " << programName << " <input_file> <output_file> [options]\n\n";
     std::cout << "Supported file formats:\n";
-    std::cout << "  .json       Spine JSON format\n";
+    std::cout << "  .json, .spine-json  Spine JSON format\n";
     std::cout << "  .skel       Spine binary (SKEL) format\n\n";
     std::cout << "Options:\n";
     std::cout << "  -v          Output version (must be complete: x.y.z format)\n";
@@ -506,24 +513,24 @@ ConversionOptions parseArguments(int argc, char* argv[]) {
     std::string inputExt = u8path(options.inputFile).extension().string();
     std::string outputExt = u8path(options.outputFile).extension().string();
     
-    if (inputExt == ".json") {
+    if (inputExt == ".json" || inputExt == ".spine-json") {
         options.inputFormat = FileFormat::Json;
     } else if (inputExt == ".skel") {
         options.inputFormat = FileFormat::Skel;
     } else {
         std::cerr << "Error: Unsupported input file extension: " << inputExt << "\n";
-        std::cerr << "Supported extensions: .json, .skel\n";
+        std::cerr << "Supported extensions: .json, .spine-json, .skel\n";
         options.help = true;
         return options;
     }
     
-    if (outputExt == ".json") {
+    if (outputExt == ".json" || outputExt == ".spine-json") {
         options.outputFormat = FileFormat::Json;
     } else if (outputExt == ".skel") {
         options.outputFormat = FileFormat::Skel;
     } else {
         std::cerr << "Error: Unsupported output file extension: " << outputExt << "\n";
-        std::cerr << "Supported extensions: .json, .skel\n";
+        std::cerr << "Supported extensions: .json, .spine-json, .skel\n";
         options.help = true;
         return options;
     }
